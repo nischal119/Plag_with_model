@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plagiarism Detection System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1><i class="fas fa-search"></i> Plagiarism Detection System</h1>
+      <p>Advanced text similarity analysis using NumPy-based machine learning</p>
+    </header>
+
+    <!-- Model Training Section -->
+    <section class="card">
+      <h2><i class="fas fa-cogs"></i> Model Training</h2>
+      <p>Train the plagiarism detection model using the provided dataset.</p>
+      <button id="trainBtn" class="btn btn-primary">
+        <i class="fas fa-play"></i> Train Model
+      </button>
+      <div id="trainingStatus" class="status"></div>
+    </section>
+
+    <!-- Mode Selection -->
+    <section class="card">
+      <h2><i class="fas fa-tasks"></i> Detection Mode</h2>
+      <div class="mode-selector">
+        <button class="mode-btn active" data-mode="pairwise">
+          <i class="fas fa-exchange-alt"></i> Pairwise Comparison
+        </button>
+        <button class="mode-btn" data-mode="classification">
+          <i class="fas fa-tag"></i> Classification
+        </button>
+        <button class="mode-btn" data-mode="multiple">
+          <i class="fas fa-list"></i> Multiple Reference
+        </button>
+      </div>
+    </section>
+
+    <!-- Pairwise Comparison Mode -->
+    <div id="pairwiseMode" class="mode-content active">
+      <section class="card">
+        <h2><i class="fas fa-exchange-alt"></i> Pairwise Text Comparison</h2>
+        <div class="input-group">
+          <div class="input-section">
+            <h3>Text 1</h3>
+            <textarea id="text1" placeholder="Enter first text or upload a file..."></textarea>
+            <div class="file-upload">
+              <input type="file" id="file1" accept=".txt,.docx,.pdf" style="display: none;">
+              <button class="btn btn-secondary" onclick="document.getElementById('file1').click()">
+                <i class="fas fa-upload"></i> Upload File
+              </button>
+              <span id="file1Name"></span>
+            </div>
+          </div>
+          <div class="input-section">
+            <h3>Text 2</h3>
+            <textarea id="text2" placeholder="Enter second text or upload a file..."></textarea>
+            <div class="file-upload">
+              <input type="file" id="file2" accept=".txt,.docx,.pdf" style="display: none;">
+              <button class="btn btn-secondary" onclick="document.getElementById('file2').click()">
+                <i class="fas fa-upload"></i> Upload File
+              </button>
+              <span id="file2Name"></span>
+            </div>
+          </div>
+        </div>
+        <button id="compareBtn" class="btn btn-primary">
+          <i class="fas fa-search"></i> Compare Texts
+        </button>
+      </section>
+    </div>
+
+    <!-- Classification Mode -->
+    <div id="classificationMode" class="mode-content">
+      <section class="card">
+        <h2><i class="fas fa-tag"></i> Text Classification</h2>
+        <div class="input-section">
+          <h3>Input Text</h3>
+          <textarea id="classifyText" placeholder="Enter text to classify or upload a file..."></textarea>
+          <div class="file-upload">
+            <input type="file" id="classifyFile" accept=".txt,.docx,.pdf" style="display: none;">
+            <button class="btn btn-secondary" onclick="document.getElementById('classifyFile').click()">
+              <i class="fas fa-upload"></i> Upload File
+            </button>
+            <span id="classifyFileName"></span>
+          </div>
+        </div>
+        <button id="classifyBtn" class="btn btn-primary">
+          <i class="fas fa-tag"></i> Classify Text
+        </button>
+      </section>
+    </div>
+
+    <!-- Multiple Reference Mode -->
+    <div id="multipleMode" class="mode-content">
+      <section class="card">
+        <h2><i class="fas fa-list"></i> Multiple Reference Comparison</h2>
+        <div class="input-section">
+          <h3>Input Text</h3>
+          <textarea id="multipleText" placeholder="Enter text to compare against references..."></textarea>
+          <div class="file-upload">
+            <input type="file" id="multipleFile" accept=".txt,.docx,.pdf" style="display: none;">
+            <button class="btn btn-secondary" onclick="document.getElementById('multipleFile').click()">
+              <i class="fas fa-upload"></i> Upload File
+            </button>
+            <span id="multipleFileName"></span>
+          </div>
+        </div>
+        <button id="multipleBtn" class="btn btn-primary">
+          <i class="fas fa-list"></i> Compare Against References
+        </button>
+      </section>
+    </div>
+
+    <!-- Results Section -->
+    <section id="resultsSection" class="card" style="display: none;">
+      <h2><i class="fas fa-chart-bar"></i> Analysis Results</h2>
+      <div id="resultsContent"></div>
+    </section>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+      <div class="loading-content">
+        <i class="fas fa-spinner fa-spin"></i>
+        <p>Processing...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>
