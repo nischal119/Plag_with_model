@@ -18,11 +18,21 @@
 
     <!-- Model Training Section -->
     <section class="card">
-      <h2><i class="fas fa-cogs"></i> Model Training</h2>
-      <p>Train the plagiarism detection model using the provided dataset.</p>
-      <button id="trainBtn" class="btn btn-primary">
-        <i class="fas fa-play"></i> Train Model
-      </button>
+      <h2><i class="fas fa-cogs"></i> Model Management</h2>
+      <div class="model-status">
+        <div class="status-indicator">
+          <span id="modelStatusText">Checking model status...</span>
+          <div id="modelStatusIcon" class="status-icon"></div>
+        </div>
+        <div class="model-actions">
+          <button id="trainBtn" class="btn btn-primary">
+            <i class="fas fa-play"></i> Train Model
+          </button>
+          <button id="resetBtn" class="btn btn-secondary">
+            <i class="fas fa-trash"></i> Reset Model
+          </button>
+        </div>
+      </div>
       <div id="trainingStatus" class="status"></div>
     </section>
 

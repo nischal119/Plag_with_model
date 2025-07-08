@@ -193,6 +193,43 @@ textarea:focus {
   font-size: 0.9rem;
 }
 
+/* Model status */
+.model-status {
+  margin-bottom: 20px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 12px;
+  background: #f7fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.status-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #cbd5e0;
+}
+
+.status-icon.ready {
+  background: #38a169;
+}
+
+.status-icon.not-ready {
+  background: #e53e3e;
+}
+
+.model-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* Status messages */
 .status {
   margin-top: 15px;

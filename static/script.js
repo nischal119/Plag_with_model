@@ -5,10 +5,13 @@ let currentMode = "pairwise";
 const modeBtns = document.querySelectorAll(".mode-btn");
 const modeContents = document.querySelectorAll(".mode-content");
 const trainBtn = document.getElementById("trainBtn");
+const resetBtn = document.getElementById("resetBtn");
 const compareBtn = document.getElementById("compareBtn");
 const classifyBtn = document.getElementById("classifyBtn");
 const multipleBtn = document.getElementById("multipleBtn");
 const trainingStatus = document.getElementById("trainingStatus");
+const modelStatusText = document.getElementById("modelStatusText");
+const modelStatusIcon = document.getElementById("modelStatusIcon");
 const resultsSection = document.getElementById("resultsSection");
 const resultsContent = document.getElementById("resultsContent");
 const loadingOverlay = document.getElementById("loadingOverlay");
@@ -29,6 +32,7 @@ const multipleFileName = document.getElementById("multipleFileName");
 document.addEventListener("DOMContentLoaded", function () {
   setupEventListeners();
   setupFileUploads();
+  checkModelStatus();
 });
 
 function setupEventListeners() {
@@ -37,8 +41,9 @@ function setupEventListeners() {
     btn.addEventListener("click", () => switchMode(btn.dataset.mode));
   });
 
-  // Training
+  // Model management
   trainBtn.addEventListener("click", trainModel);
+  resetBtn.addEventListener("click", resetModel);
 
   // Detection buttons
   compareBtn.addEventListener("click", () => detectPlagiarism("pairwise"));
@@ -108,6 +113,32 @@ function showResults(content) {
   resultsSection.scrollIntoView({ behavior: "smooth" });
 }
 
+async function checkModelStatus() {
+  try {
+    const response = await fetch("/model/status");
+    const data = await response.json();
+
+    if (data.success) {
+      updateModelStatusUI(data.status);
+    }
+  } catch (error) {
+    console.error("Error checking model status:", error);
+    updateModelStatusUI({ is_trained: false, model_exists: false });
+  }
+}
+
+function updateModelStatusUI(status) {
+  if (status.is_trained && status.model_exists) {
+    modelStatusText.textContent = "Model ready - trained and loaded";
+    modelStatusIcon.className = "status-icon ready";
+    trainBtn.textContent = "Retrain Model";
+  } else {
+    modelStatusText.textContent = "Model not trained - training required";
+    modelStatusIcon.className = "status-icon not-ready";
+    trainBtn.textContent = "Train Model";
+  }
+}
+
 async function trainModel() {
   showLoading();
   trainBtn.disabled = true;
@@ -132,6 +163,8 @@ async function trainModel() {
         ).toFixed(2)}%`,
         "success"
       );
+      // Update model status after training
+      await checkModelStatus();
     } else {
       showStatus(data.message, "error");
     }
@@ -140,6 +173,42 @@ async function trainModel() {
   } finally {
     hideLoading();
     trainBtn.disabled = false;
+  }
+}
+
+async function resetModel() {
+  if (
+    !confirm(
+      "Are you sure you want to reset the model? This will require retraining."
+    )
+  ) {
+    return;
+  }
+
+  showLoading();
+  resetBtn.disabled = true;
+
+  try {
+    const response = await fetch("/model/reset", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      showStatus("Model reset successfully. Training required.", "info");
+      updateModelStatusUI({ is_trained: false, model_exists: false });
+    } else {
+      showStatus(data.message, "error");
+    }
+  } catch (error) {
+    showStatus("Error resetting model: " + error.message, "error");
+  } finally {
+    hideLoading();
+    resetBtn.disabled = false;
   }
 }
 

@@ -17,11 +17,14 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 # Ensure upload directory exists
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-# Initialize plagiarism detector
-detector = PlagiarismDetector()
+# Initialize plagiarism detector (now handled above with persistence)
 
 # Global variable to store trained model
 model_trained = False
+
+# Initialize detector with model persistence
+detector = PlagiarismDetector()
+model_trained = detector.is_trained
 
 
 def allowed_file(filename):
@@ -92,6 +95,32 @@ def train_model():
     except Exception as e:
         return (
             jsonify({"success": False, "message": f"Error training model: {str(e)}"}),
+            500,
+        )
+
+
+@app.route("/model/status", methods=["GET"])
+def get_model_status():
+    """Get current model status."""
+    global detector
+    status = detector.get_model_status()
+    return jsonify({"success": True, "status": status})
+
+
+@app.route("/model/reset", methods=["POST"])
+def reset_model():
+    """Reset the model."""
+    global detector, model_trained
+
+    try:
+        detector.reset_model()
+        model_trained = False
+        return jsonify(
+            {"success": True, "message": "Model reset successfully. Training required."}
+        )
+    except Exception as e:
+        return (
+            jsonify({"success": False, "message": f"Error resetting model: {str(e)}"}),
             500,
         )
 
@@ -315,4 +344,4 @@ def static_files(filename):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5001)

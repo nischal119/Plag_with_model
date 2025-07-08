@@ -198,14 +198,44 @@ class LogisticRegression:
         predictions = self.predict(X)
         return np.mean(predictions == y)
 
+    def save_model(self, filename: str) -> None:
+        """Save model weights and bias to file."""
+        if self.weights is None or self.bias is None:
+            raise ValueError("Model must be trained before saving")
+        np.savez(filename, weights=self.weights, bias=self.bias)
+
+    def load_model(self, filename: str) -> bool:
+        """Load model weights and bias from file."""
+        try:
+            data = np.load(filename)
+            self.weights = data["weights"]
+            self.bias = data["bias"]
+            return True
+        except (FileNotFoundError, KeyError, OSError):
+            return False
+
+    def is_trained(self) -> bool:
+        """Check if model is trained."""
+        return self.weights is not None and self.bias is not None
+
 
 class PlagiarismDetector:
     """Main plagiarism detection system."""
 
-    def __init__(self):
+    def __init__(self, model_file: str = "plagiarism_model.npz"):
         self.model = LogisticRegression(learning_rate=0.1, max_iterations=1000)
         self.feature_extractor = FeatureExtractor()
+        self.model_file = model_file
         self.is_trained = False
+        self._load_existing_model()
+
+    def _load_existing_model(self) -> None:
+        """Try to load an existing trained model."""
+        if self.model.load_model(self.model_file):
+            self.is_trained = True
+            print(f"Loaded existing model from {self.model_file}")
+        else:
+            print(f"No existing model found at {self.model_file}. Training required.")
 
     def prepare_dataset(self, data_path: str) -> Tuple[np.ndarray, np.ndarray]:
         """Prepare dataset from CSV file."""
@@ -250,6 +280,13 @@ class PlagiarismDetector:
         self.model.fit(X_train, y_train)
         self.is_trained = True
 
+        # Save the trained model
+        try:
+            self.model.save_model(self.model_file)
+            print(f"Model saved to {self.model_file}")
+        except Exception as e:
+            print(f"Warning: Could not save model: {e}")
+
         # Evaluate
         train_accuracy = self.model.score(X_train, y_train)
         test_accuracy = self.model.score(X_test, y_test)
@@ -259,6 +296,7 @@ class PlagiarismDetector:
             "test_accuracy": test_accuracy,
             "n_train_samples": len(X_train),
             "n_test_samples": len(X_test),
+            "model_saved": True,
         }
 
     def detect_plagiarism(self, text1: str, text2: str) -> Dict[str, any]:
@@ -315,6 +353,28 @@ class PlagiarismDetector:
         # Sort by length (longer matches first)
         matches.sort(key=lambda x: x["length"], reverse=True)
         return matches[:10]  # Return top 10 matches
+
+    def get_model_status(self) -> Dict[str, any]:
+        """Get current model status."""
+        return {
+            "is_trained": self.is_trained,
+            "model_file": self.model_file,
+            "model_exists": self.model.is_trained(),
+        }
+
+    def reset_model(self) -> None:
+        """Reset the model and remove saved file."""
+        self.is_trained = False
+        self.model.weights = None
+        self.model.bias = None
+        try:
+            import os
+
+            if os.path.exists(self.model_file):
+                os.remove(self.model_file)
+                print(f"Removed model file: {self.model_file}")
+        except Exception as e:
+            print(f"Warning: Could not remove model file: {e}")
 
 
 if __name__ == "__main__":
