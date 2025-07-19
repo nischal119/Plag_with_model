@@ -1,5 +1,7 @@
 // Global variables
 let currentMode = "pairwise";
+let referenceFileCounter = 0;
+let referenceFiles = new Map(); // Map to store reference file data
 
 // DOM elements
 const modeBtns = document.querySelectorAll(".mode-btn");
@@ -9,6 +11,12 @@ const resetBtn = document.getElementById("resetBtn");
 const compareBtn = document.getElementById("compareBtn");
 const classifyBtn = document.getElementById("classifyBtn");
 const multipleBtn = document.getElementById("multipleBtn");
+const addReferenceBtn = document.getElementById("addReferenceBtn");
+const clearAllReferencesBtn = document.getElementById("clearAllReferencesBtn");
+const bulkReferenceFiles = document.getElementById("bulkReferenceFiles");
+const referenceFilesContainer = document.getElementById(
+  "referenceFilesContainer"
+);
 const trainingStatus = document.getElementById("trainingStatus");
 const modelStatusText = document.getElementById("modelStatusText");
 const modelStatusIcon = document.getElementById("modelStatusIcon");
@@ -51,6 +59,11 @@ function setupEventListeners() {
     detectPlagiarism("classification")
   );
   multipleBtn.addEventListener("click", compareMultiple);
+
+  // Reference file management
+  addReferenceBtn.addEventListener("click", addReferenceFile);
+  clearAllReferencesBtn.addEventListener("click", clearAllReferenceFiles);
+  bulkReferenceFiles.addEventListener("change", handleBulkReferenceUpload);
 }
 
 function setupFileUploads() {
@@ -124,6 +137,9 @@ function clearAllInputs() {
     span.textContent = "";
   });
 
+  // Clear reference files without confirmation
+  clearAllReferenceFiles(false);
+
   // Update button text
   updateCompareButtonText();
 }
@@ -178,6 +194,200 @@ function handleFileUpload(event, nameElement) {
   }
 }
 
+function addReferenceFile() {
+  referenceFileCounter++;
+  const fileId = `referenceFile${referenceFileCounter}`;
+
+  const fileItem = document.createElement("div");
+  fileItem.className = "reference-file-item";
+  fileItem.id = `referenceItem${referenceFileCounter}`;
+
+  fileItem.innerHTML = `
+    <div class="file-info">
+      <i class="fas fa-file-alt file-icon"></i>
+      <span class="file-name">No file selected</span>
+      <span class="file-size"></span>
+    </div>
+    <div class="file-upload">
+      <input type="file" id="${fileId}" accept=".txt,.docx,.pdf" style="display: none;">
+      <button class="btn btn-secondary" onclick="document.getElementById('${fileId}').click()">
+        <i class="fas fa-upload"></i> Upload
+      </button>
+      <span id="${fileId}Name"></span>
+    </div>
+    <button class="remove-btn" onclick="removeReferenceFile(${referenceFileCounter})">
+      <i class="fas fa-times"></i>
+    </button>
+  `;
+
+  referenceFilesContainer.appendChild(fileItem);
+
+  // Add event listener for the new file input
+  const fileInput = document.getElementById(fileId);
+  const fileNameSpan = document.getElementById(`${fileId}Name`);
+
+  fileInput.addEventListener("change", (e) =>
+    handleReferenceFileUpload(e, fileId, fileNameSpan)
+  );
+
+  // Store reference file data
+  referenceFiles.set(fileId, {
+    element: fileItem,
+    fileInput: fileInput,
+    fileNameSpan: fileNameSpan,
+    file: null,
+  });
+}
+
+function removeReferenceFile(counter) {
+  const fileId = `referenceFile${counter}`;
+  const fileData = referenceFiles.get(fileId);
+
+  if (fileData) {
+    fileData.element.remove();
+    referenceFiles.delete(fileId);
+  }
+}
+
+function handleReferenceFileUpload(event, fileId, nameElement) {
+  const file = event.target.files[0];
+  const fileData = referenceFiles.get(fileId);
+
+  if (file && fileData) {
+    // Update file data
+    fileData.file = file;
+    fileData.fileNameSpan.textContent = file.name;
+    fileData.fileNameSpan.style.color = "#38a169";
+
+    // Update file info display
+    const fileInfo = fileData.element.querySelector(".file-info");
+    const fileName = fileInfo.querySelector(".file-name");
+    const fileSize = fileInfo.querySelector(".file-size");
+
+    fileName.textContent = file.name;
+    fileName.style.color = "#2d3748";
+    fileSize.textContent = formatFileSize(file.size);
+
+    // Update button text
+    updateCompareButtonText();
+  } else if (fileData) {
+    // Clear file data
+    fileData.file = null;
+    fileData.fileNameSpan.textContent = "";
+
+    const fileInfo = fileData.element.querySelector(".file-info");
+    const fileName = fileInfo.querySelector(".file-name");
+    const fileSize = fileInfo.querySelector(".file-size");
+
+    fileName.textContent = "No file selected";
+    fileName.style.color = "#718096";
+    fileSize.textContent = "";
+
+    updateCompareButtonText();
+  }
+}
+
+function handleBulkReferenceUpload(event) {
+  const files = event.target.files;
+
+  if (files.length === 0) return;
+
+  // Clear existing reference files if any
+  if (referenceFiles.size > 0) {
+    if (!confirm("This will replace all existing reference files. Continue?")) {
+      event.target.value = "";
+      return;
+    }
+    clearAllReferenceFiles();
+  }
+
+  Array.from(files).forEach((file, index) => {
+    referenceFileCounter++;
+    const fileId = `bulkReferenceFile${referenceFileCounter}`;
+
+    const fileItem = document.createElement("div");
+    fileItem.className = "reference-file-item";
+    fileItem.id = `referenceItem${referenceFileCounter}`;
+
+    fileItem.innerHTML = `
+      <div class="file-info">
+        <i class="fas fa-file-alt file-icon"></i>
+        <span class="file-name">${file.name}</span>
+        <span class="file-size">${formatFileSize(file.size)}</span>
+      </div>
+      <div class="file-upload">
+        <input type="file" id="${fileId}" accept=".txt,.docx,.pdf" style="display: none;">
+        <button class="btn btn-secondary" onclick="document.getElementById('${fileId}').click()">
+          <i class="fas fa-upload"></i> Change
+        </button>
+        <span id="${fileId}Name"></span>
+      </div>
+      <button class="remove-btn" onclick="removeReferenceFile(${referenceFileCounter})">
+        <i class="fas fa-times"></i>
+      </button>
+    `;
+
+    referenceFilesContainer.appendChild(fileItem);
+
+    // Add event listener for the new file input
+    const fileInput = document.getElementById(fileId);
+    const fileNameSpan = document.getElementById(`${fileId}Name`);
+
+    fileInput.addEventListener("change", (e) =>
+      handleReferenceFileUpload(e, fileId, fileNameSpan)
+    );
+
+    // Store reference file data with the actual file
+    referenceFiles.set(fileId, {
+      element: fileItem,
+      fileInput: fileInput,
+      fileNameSpan: fileNameSpan,
+      file: file,
+    });
+
+    // Update file info display
+    const fileInfo = fileItem.querySelector(".file-info");
+    const fileName = fileInfo.querySelector(".file-name");
+    const fileSize = fileInfo.querySelector(".file-size");
+
+    fileName.textContent = file.name;
+    fileName.style.color = "#2d3748";
+    fileSize.textContent = formatFileSize(file.size);
+  });
+
+  // Clear the input for future use
+  event.target.value = "";
+
+  updateCompareButtonText();
+}
+
+function clearAllReferenceFiles(requireConfirmation = true) {
+  if (requireConfirmation && referenceFiles.size > 0) {
+    if (
+      !confirm(
+        "Are you sure you want to clear all reference files? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+  }
+
+  referenceFiles.forEach((fileData) => {
+    fileData.element.remove();
+  });
+  referenceFiles.clear();
+  referenceFileCounter = 0;
+  updateCompareButtonText();
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+}
+
 function updateCompareButtonText() {
   // Check if any files are uploaded in pairwise mode
   const file1 = document.getElementById("file1");
@@ -204,9 +414,23 @@ function updateCompareButtonText() {
   const multipleFile = document.getElementById("multipleFile");
   const multipleBtn = document.getElementById("multipleBtn");
 
-  if (multipleFile.files.length > 0) {
-    multipleBtn.innerHTML =
-      '<i class="fas fa-file-alt"></i> Compare Document Against References';
+  // Count reference files with actual files
+  let referenceFileCount = 0;
+  referenceFiles.forEach((fileData) => {
+    if (fileData.file) {
+      referenceFileCount++;
+    }
+  });
+
+  if (multipleFile.files.length > 0 || referenceFileCount > 0) {
+    const fileText = multipleFile.files.length > 0 ? "Document" : "Text";
+    const referenceText =
+      referenceFileCount > 0
+        ? ` (${referenceFileCount} reference${
+            referenceFileCount > 1 ? "s" : ""
+          })`
+        : "";
+    multipleBtn.innerHTML = `<i class="fas fa-file-alt"></i> Compare ${fileText} Against References${referenceText}`;
   } else {
     multipleBtn.innerHTML =
       '<i class="fas fa-list"></i> Compare Against References';
@@ -408,17 +632,38 @@ async function compareMultiple() {
     const formData = new FormData();
     const text = document.getElementById("multipleText").value;
 
+    // Add original text/file
     if (!text && !multipleFile.files[0]) {
-      alert("Please provide text or file for comparison");
+      alert("Please provide original text or file for comparison");
       hideLoading();
       return;
     }
 
     formData.append("text", text);
-
     if (multipleFile.files[0]) {
       formData.append("file", multipleFile.files[0]);
     }
+
+    // Add reference files
+    let referenceFileCount = 0;
+    referenceFiles.forEach((fileData, fileId) => {
+      if (fileData.file) {
+        formData.append(`reference_file_${referenceFileCount}`, fileData.file);
+        formData.append(
+          `reference_name_${referenceFileCount}`,
+          fileData.file.name
+        );
+        referenceFileCount++;
+      }
+    });
+
+    if (referenceFileCount === 0) {
+      alert("Please upload at least one reference document");
+      hideLoading();
+      return;
+    }
+
+    formData.append("reference_count", referenceFileCount);
 
     const response = await fetch("/compare_multiple", {
       method: "POST",
@@ -691,21 +936,30 @@ function displayResults(data, mode) {
 function displayMultipleResults(data) {
   let content = `
         <div class="result-card">
-            <h3>Multiple Reference Comparison Results</h3>
-            <p><strong>Input Text:</strong> ${data.input_text.substring(
-              0,
-              100
-            )}${data.input_text.length > 100 ? "..." : ""}</p>
+            <h3><i class="fas fa-file-alt"></i> Multiple Reference Comparison Results</h3>
+            <div class="original-document-info">
+                <h4><i class="fas fa-file-alt"></i> Original Document</h4>
+                <p><strong>Name:</strong> ${
+                  data.original_file_name || "Text Input"
+                }</p>
+                <p><strong>Content Preview:</strong> ${data.input_text.substring(
+                  0,
+                  150
+                )}${data.input_text.length > 150 ? "..." : ""}</p>
+            </div>
         </div>
     `;
 
   data.results.forEach((item, index) => {
+    // Create compact summary
+    const summaryText = createCompactSummary(item);
+
     content += `
             <div class="result-card">
                 <div class="result-header">
-                    <div class="result-title">Reference ${
-                      item.reference_id
-                    }</div>
+                    <div class="result-title">
+                        <i class="fas fa-file-alt"></i> ${item.reference_name}
+                    </div>
                     <div class="result-score ${getScoreClass(
                       item.result.plagiarism_probability
                     )}">
@@ -715,185 +969,241 @@ function displayMultipleResults(data) {
                     </div>
                 </div>
                 
-                <p><strong>Reference Text:</strong> ${item.reference_text}</p>
-                <p><strong>Classification:</strong> ${
-                  item.result.is_plagiarized
-                    ? "Likely Plagiarized"
-                    : "Likely Original"
-                }</p>
-                
-                <div class="similarity-scores">
-                    <div class="similarity-item">
-                        <div class="similarity-label">Unigram Jaccard</div>
-                        <div class="similarity-value">${(
-                          item.result.similarity_scores.unigram_jaccard * 100
-                        ).toFixed(2)}%</div>
+                <div class="compact-summary">
+                    <div class="summary-badge ${
+                      item.result.is_plagiarized ? "plagiarized" : "original"
+                    }">
+                        <i class="fas ${
+                          item.result.is_plagiarized
+                            ? "fa-exclamation-triangle"
+                            : "fa-check-circle"
+                        }"></i>
+                        ${
+                          item.result.is_plagiarized
+                            ? "Likely Plagiarized"
+                            : "Likely Original"
+                        }
                     </div>
-                    <div class="similarity-item">
-                        <div class="similarity-label">Bigram Jaccard</div>
-                        <div class="similarity-value">${(
-                          item.result.similarity_scores.bigram_jaccard * 100
-                        ).toFixed(2)}%</div>
-                    </div>
-                    <div class="similarity-item">
-                        <div class="similarity-label">Trigram Jaccard</div>
-                        <div class="similarity-value">${(
-                          item.result.similarity_scores.trigram_jaccard * 100
-                        ).toFixed(2)}%</div>
-                    </div>
-                    <div class="similarity-item">
-                        <div class="similarity-label">Cosine Similarity</div>
-                        <div class="similarity-value">${(
-                          item.result.similarity_scores.cosine_similarity * 100
-                        ).toFixed(2)}%</div>
-                    </div>
+                    <div class="summary-text">${summaryText}</div>
                 </div>
 
-                <div class="matching-summary">
-                    <h4><i class="fas fa-chart-pie"></i> Matching Summary</h4>
-                    <div class="summary-stats">
-                        <div class="summary-item">
-                            <span class="summary-label">Total Matches:</span>
-                            <span class="summary-value">${
-                              item.summary.total_matches
-                            }</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">Exact Matches:</span>
-                            <span class="summary-value exact">${
-                              item.summary.exact_matches
-                            }</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">Semantic Matches:</span>
-                            <span class="summary-value semantic">${
-                              item.summary.semantic_matches
-                            }</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">Longest Match:</span>
-                            <span class="summary-value">${
-                              item.summary.longest_match
-                            } words</span>
-                        </div>
+                <div class="results-tabs">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" onclick="switchTab(${index}, 'original')">
+                            <i class="fas fa-file-alt"></i> Original Text
+                        </button>
+                        <button class="tab-btn" onclick="switchTab(${index}, 'matches')">
+                            <i class="fas fa-search"></i> Matching Phrases (${
+                              item.matches.length
+                            })
+                        </button>
+                        <button class="tab-btn" onclick="switchTab(${index}, 'reference')">
+                            <i class="fas fa-file-alt"></i> ${
+                              item.reference_name
+                            }
+                        </button>
                     </div>
-                </div>
+                    
+                    <div class="tab-content">
+                        <div id="tab-${index}-original" class="tab-pane active">
+                            <div class="highlighted-text">
+                                <h4><i class="fas fa-highlighter"></i> Original Document with Highlights</h4>
+                                <div class="text-content">${
+                                  item.highlighted_text1
+                                }</div>
+                            </div>
+                        </div>
+                        
+                        <div id="tab-${index}-matches" class="tab-pane">
+                            <div class="matching-phrases-section">
+                                <h4><i class="fas fa-search"></i> Matching Phrases Found</h4>
+                                <div class="matching-phrases-grid">
+                                    ${(() => {
+                                      const exactMatches = item.matches.filter(
+                                        (m) => m.match_type === "exact"
+                                      );
+                                      const semanticMatches =
+                                        item.matches.filter(
+                                          (m) => m.match_type === "semantic"
+                                        );
 
-                ${
-                  item.matches.length > 0
-                    ? `
-                <div class="matching-phrases-section">
-                    <h4><i class="fas fa-search"></i> Top Matching Phrases</h4>
-                    <div class="matching-phrases-grid">
-                        ${(() => {
-                          // Group matches by type
-                          const exactMatches = item.matches.filter(
-                            (m) => m.match_type === "exact"
-                          );
-                          const semanticMatches = item.matches.filter(
-                            (m) => m.match_type === "semantic"
-                          );
+                                      let content = "";
 
-                          let content = "";
-
-                          // Show exact matches first
-                          if (exactMatches.length > 0) {
-                            content +=
-                              '<div class="match-group"><h5><i class="fas fa-check-circle"></i> Exact Matches</h5>';
-                            exactMatches.slice(0, 3).forEach((match) => {
-                              content += `
-                                        <div class="match-card exact">
-                                            <div class="match-header">
-                                                <div class="match-type exact">
-                                                    <i class="fas fa-check-circle"></i>
-                                                    Exact Match
-                                                </div>
-                                                <div class="match-length">${
-                                                  match.length
-                                                }-gram</div>
-                                            </div>
-                                            
-                                            <div class="match-content">
-                                                <div class="match-phrase">
-                                                    <strong>Phrase:</strong> "${
-                                                      match.phrase
-                                                    }"
-                                                </div>
-                                                <div class="match-context">
-                                                    <div class="context-item">
-                                                        <strong>Input Context:</strong>
-                                                        <div class="context-text">${
-                                                          match.context1 ||
-                                                          "No context available"
-                                                        }</div>
+                                      if (exactMatches.length > 0) {
+                                        content +=
+                                          '<div class="match-group"><h5><i class="fas fa-check-circle"></i> Exact Matches (${exactMatches.length})</h5>';
+                                        exactMatches
+                                          .slice(0, 5)
+                                          .forEach((match) => {
+                                            content += `
+                                                    <div class="match-card exact">
+                                                        <div class="match-header">
+                                                            <div class="match-type exact">
+                                                                <i class="fas fa-check-circle"></i>
+                                                                Exact Match
+                                                            </div>
+                                                            <div class="match-length">${
+                                                              match.length
+                                                            }-gram</div>
+                                                        </div>
+                                                        <div class="match-content">
+                                                            <div class="match-phrase">
+                                                                <strong>Phrase:</strong> "${
+                                                                  match.phrase
+                                                                }"
+                                                            </div>
+                                                            <div class="match-context">
+                                                                <div class="context-item">
+                                                                    <strong>Original Context:</strong>
+                                                                    <div class="context-text">${
+                                                                      match.context1 ||
+                                                                      "No context available"
+                                                                    }</div>
+                                                                </div>
+                                                                <div class="context-item">
+                                                                    <strong>Reference Context:</strong>
+                                                                    <div class="context-text">${
+                                                                      match.context2 ||
+                                                                      "No context available"
+                                                                    }</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div class="context-item">
-                                                        <strong>Reference Context:</strong>
-                                                        <div class="context-text">${
-                                                          match.context2 ||
-                                                          "No context available"
-                                                        }</div>
+                                                `;
+                                          });
+                                        content += "</div>";
+                                      }
+
+                                      if (semanticMatches.length > 0) {
+                                        content +=
+                                          '<div class="match-group"><h5><i class="fas fa-sync-alt"></i> Semantic Matches (${semanticMatches.length})</h5>';
+                                        semanticMatches
+                                          .slice(0, 5)
+                                          .forEach((match) => {
+                                            content += `
+                                                    <div class="match-card semantic">
+                                                        <div class="match-header">
+                                                            <div class="match-type semantic">
+                                                                <i class="fas fa-sync-alt"></i>
+                                                                Semantic Match
+                                                            </div>
+                                                            <div class="match-length">${
+                                                              match.length
+                                                            }-gram</div>
+                                                        </div>
+                                                        <div class="match-content">
+                                                            <div class="match-phrase">
+                                                                <strong>Original:</strong> "${
+                                                                  match.phrase1
+                                                                }"
+                                                            </div>
+                                                            <div class="match-phrase">
+                                                                <strong>Reference:</strong> "${
+                                                                  match.phrase2
+                                                                }"
+                                                            </div>
+                                                            <div class="match-similarity">
+                                                                <strong>Similarity:</strong> ${(
+                                                                  match.similarity *
+                                                                  100
+                                                                ).toFixed(1)}%
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `;
-                            });
-                            content += "</div>";
-                          }
+                                                `;
+                                          });
+                                        content += "</div>";
+                                      }
 
-                          // Show semantic matches
-                          if (semanticMatches.length > 0) {
-                            content +=
-                              '<div class="match-group"><h5><i class="fas fa-sync-alt"></i> Semantic Matches</h5>';
-                            semanticMatches.slice(0, 3).forEach((match) => {
-                              content += `
-                                        <div class="match-card semantic">
-                                            <div class="match-header">
-                                                <div class="match-type semantic">
-                                                    <i class="fas fa-sync-alt"></i>
-                                                    Semantic Match
-                                                </div>
-                                                <div class="match-length">${
-                                                  match.length
-                                                }-gram</div>
-                                            </div>
-                                            
-                                            <div class="match-content">
-                                                <div class="match-phrase">
-                                                    <strong>Input:</strong> "${
-                                                      match.phrase1
-                                                    }"
-                                                </div>
-                                                <div class="match-phrase">
-                                                    <strong>Reference:</strong> "${
-                                                      match.phrase2
-                                                    }"
-                                                </div>
-                                                <div class="match-similarity">
-                                                    <strong>Similarity:</strong> ${(
-                                                      match.similarity * 100
-                                                    ).toFixed(1)}%
-                                                </div>
-                                            </div>
-                                        </div>
-                                    `;
-                            });
-                            content += "</div>";
-                          }
+                                      if (
+                                        exactMatches.length === 0 &&
+                                        semanticMatches.length === 0
+                                      ) {
+                                        content =
+                                          '<div class="no-matches"><i class="fas fa-info-circle"></i> No matching phrases found</div>';
+                                      }
 
-                          return content;
-                        })()}
+                                      return content;
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="tab-${index}-reference" class="tab-pane">
+                            <div class="highlighted-text">
+                                <h4><i class="fas fa-highlighter"></i> ${
+                                  item.reference_name
+                                } with Highlights</h4>
+                                <div class="text-content">${
+                                  item.highlighted_text2
+                                }</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                `
-                    : ""
-                }
             </div>
         `;
   });
 
   showResults(content);
+}
+
+function createCompactSummary(item) {
+  const exactCount = item.summary.exact_matches;
+  const semanticCount = item.summary.semantic_matches;
+  const totalCount = item.summary.total_matches;
+  const longestMatch = item.summary.longest_match;
+
+  let summary = "";
+
+  if (totalCount === 0) {
+    summary = "No matching content found between documents.";
+  } else {
+    summary = `Found ${totalCount} matching phrases: `;
+
+    if (exactCount > 0) {
+      summary += `${exactCount} exact match${exactCount > 1 ? "es" : ""}`;
+    }
+
+    if (exactCount > 0 && semanticCount > 0) {
+      summary += " and ";
+    }
+
+    if (semanticCount > 0) {
+      summary += `${semanticCount} semantic match${
+        semanticCount > 1 ? "es" : ""
+      }`;
+    }
+
+    if (longestMatch > 1) {
+      summary += `. Longest match: ${longestMatch} words.`;
+    }
+  }
+
+  return summary;
+}
+
+function switchTab(resultIndex, tabName) {
+  // Remove active class from all tabs and panes
+  const tabButtons = document.querySelectorAll(
+    `.result-card:nth-child(${resultIndex + 2}) .tab-btn`
+  );
+  const tabPanes = document.querySelectorAll(
+    `.result-card:nth-child(${resultIndex + 2}) .tab-pane`
+  );
+
+  tabButtons.forEach((btn) => btn.classList.remove("active"));
+  tabPanes.forEach((pane) => pane.classList.remove("active"));
+
+  // Add active class to selected tab and pane
+  const selectedTab = document.querySelector(
+    `.result-card:nth-child(${resultIndex + 2}) .tab-btn[onclick*="${tabName}"]`
+  );
+  const selectedPane = document.getElementById(`tab-${resultIndex}-${tabName}`);
+
+  if (selectedTab) selectedTab.classList.add("active");
+  if (selectedPane) selectedPane.classList.add("active");
 }
 
 function getScoreClass(probability) {

@@ -111,17 +111,53 @@
     <div id="multipleMode" class="mode-content">
       <section class="card">
         <h2><i class="fas fa-list"></i> Multiple Reference Comparison</h2>
+
+        <!-- Original Document Section -->
         <div class="input-section">
-          <h3>Input Text</h3>
-          <textarea id="multipleText" placeholder="Enter text to compare against references..."></textarea>
+          <h3><i class="fas fa-file-alt"></i> Original Document</h3>
+          <textarea id="multipleText" placeholder="Enter original text or upload a file..."></textarea>
           <div class="file-upload">
             <input type="file" id="multipleFile" accept=".txt,.docx,.pdf" style="display: none;">
             <button class="btn btn-secondary" onclick="document.getElementById('multipleFile').click()">
-              <i class="fas fa-upload"></i> Upload File
+              <i class="fas fa-upload"></i> Upload Original Document
             </button>
             <span id="multipleFileName"></span>
           </div>
         </div>
+
+        <!-- Reference Documents Section -->
+        <div class="reference-documents-section">
+          <h3><i class="fas fa-folder-open"></i> Reference Documents</h3>
+          <div class="reference-upload-area">
+            <div class="reference-upload-instructions">
+              <p>Upload multiple reference documents to compare against the original:</p>
+            </div>
+
+            <!-- Bulk Upload Section -->
+            <div class="bulk-upload-section">
+              <input type="file" id="bulkReferenceFiles" accept=".txt,.docx,.pdf" multiple style="display: none;">
+              <button class="btn btn-secondary bulk-upload-btn"
+                onclick="document.getElementById('bulkReferenceFiles').click()">
+                <i class="fas fa-upload"></i> Select Multiple Reference Documents
+              </button>
+              <span class="bulk-upload-info">You can select multiple files at once</span>
+            </div>
+
+            <div class="reference-files-container" id="referenceFilesContainer">
+              <!-- Reference file uploads will be added here dynamically -->
+            </div>
+
+            <div class="reference-actions">
+              <button class="btn btn-secondary" id="addReferenceBtn">
+                <i class="fas fa-plus"></i> Add Single Reference
+              </button>
+              <button class="btn btn-outline" id="clearAllReferencesBtn">
+                <i class="fas fa-trash"></i> Clear All
+              </button>
+            </div>
+          </div>
+        </div>
+
         <button id="multipleBtn" class="btn btn-primary">
           <i class="fas fa-list"></i> Compare Against References
         </button>

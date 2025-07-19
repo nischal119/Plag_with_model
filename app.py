@@ -438,7 +438,7 @@ def compare_multiple():
     try:
         text = request.form.get("text", "")
 
-        # Handle file upload
+        # Handle original file upload
         if "file" in request.files and request.files["file"].filename:
             file = request.files["file"]
             if file and allowed_file(file.filename):
@@ -454,24 +454,69 @@ def compare_multiple():
                 jsonify(
                     {
                         "success": False,
-                        "message": "Please provide text or file for comparison.",
+                        "message": "Please provide original text or file for comparison.",
                     }
                 ),
                 400,
             )
 
-        # For this demo, we'll create some sample reference texts
-        # In a real implementation, you'd load these from a reference folder
-        reference_texts = [
-            "The quick brown fox jumps over the lazy dog.",
-            "Machine learning is a subset of artificial intelligence.",
-            "Python is a high-level programming language.",
-            "Data science involves statistics, programming, and domain expertise.",
-            "Natural language processing enables computers to understand human language.",
-        ]
+        # Get reference files
+        reference_count = int(request.form.get("reference_count", 0))
+        if reference_count == 0:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Please upload at least one reference document.",
+                    }
+                ),
+                400,
+            )
+
+        reference_texts = []
+        reference_names = []
+
+        for i in range(reference_count):
+            file_key = f"reference_file_{i}"
+            name_key = f"reference_name_{i}"
+
+            if file_key in request.files and request.files[file_key].filename:
+                file = request.files[file_key]
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+                    file.save(file_path)
+                    file_extension = filename.rsplit(".", 1)[1].lower()
+                    ref_text = extract_text_from_file(file_path, file_extension)
+                    os.remove(file_path)  # Clean up
+
+                    reference_texts.append(ref_text)
+                    reference_names.append(
+                        request.form.get(name_key, f"Reference {i+1}")
+                    )
+                else:
+                    return (
+                        jsonify(
+                            {
+                                "success": False,
+                                "message": f"Invalid file format for reference {i+1}.",
+                            }
+                        ),
+                        400,
+                    )
+            else:
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "message": f"Missing reference file {i+1}.",
+                        }
+                    ),
+                    400,
+                )
 
         results = []
-        for i, ref_text in enumerate(reference_texts):
+        for i, (ref_text, ref_name) in enumerate(zip(reference_texts, reference_names)):
             result = detector.detect_plagiarism(text, ref_text)
             matches = detector.find_matching_phrases(text, ref_text)
 
@@ -494,12 +539,43 @@ def compare_multiple():
                 else:
                     detailed_matches.append(match)
 
+            # Create separate match lists for highlighting each text
+            text1_matches = []
+            text2_matches = []
+
+            for match in matches:
+                if match["match_type"] == "exact":
+                    text1_matches.append(match)
+                    text2_matches.append(match)
+                else:
+                    text1_matches.append(
+                        {
+                            "match_type": "semantic",
+                            "phrase": match["phrase1"],
+                            "similarity": match["similarity"],
+                        }
+                    )
+                    text2_matches.append(
+                        {
+                            "match_type": "semantic",
+                            "phrase": match["phrase2"],
+                            "similarity": match["similarity"],
+                        }
+                    )
+
+            # Highlight matching phrases
+            highlighted_text1 = highlight_matching_phrases(text, text1_matches)
+            highlighted_text2 = highlight_matching_phrases(ref_text, text2_matches)
+
             results.append(
                 {
                     "reference_id": i + 1,
+                    "reference_name": ref_name,
                     "reference_text": ref_text,
                     "result": result,
                     "matches": detailed_matches,
+                    "highlighted_text1": highlighted_text1,
+                    "highlighted_text2": highlighted_text2,
                     "summary": {
                         "total_matches": len(detailed_matches),
                         "exact_matches": len(
@@ -524,7 +600,18 @@ def compare_multiple():
         # Sort by plagiarism probability (highest first)
         results.sort(key=lambda x: x["result"]["plagiarism_probability"], reverse=True)
 
-        return jsonify({"success": True, "results": results, "input_text": text})
+        return jsonify(
+            {
+                "success": True,
+                "results": results,
+                "input_text": text,
+                "original_file_name": (
+                    request.files.get("file", {}).filename
+                    if "file" in request.files
+                    else None
+                ),
+            }
+        )
 
     except Exception as e:
         return (
