@@ -360,28 +360,155 @@ function displayResults(data, mode) {
                     </div>
                 </div>
 
-                <div class="matching-phrases">
-                    <h4>Matching Phrases:</h4>
-                    ${data.matches
-                      .map(
-                        (match) => `
-                        <div class="phrase-item">
-                            <div class="phrase-text">"${match.phrase}"</div>
-                            <div class="phrase-type">${match.type}</div>
+                <div class="matching-summary">
+                    <h4><i class="fas fa-chart-pie"></i> Matching Summary</h4>
+                    <div class="summary-stats">
+                        <div class="summary-item">
+                            <span class="summary-label">Total Matches:</span>
+                            <span class="summary-value">${
+                              data.summary.total_matches
+                            }</span>
                         </div>
-                    `
-                      )
-                      .join("")}
+                        <div class="summary-item">
+                            <span class="summary-label">Exact Matches:</span>
+                            <span class="summary-value exact">${
+                              data.summary.exact_matches
+                            }</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Semantic Matches:</span>
+                            <span class="summary-value semantic">${
+                              data.summary.semantic_matches
+                            }</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Longest Match:</span>
+                            <span class="summary-value">${
+                              data.summary.longest_match
+                            } words</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="highlighted-text">
-                    <h4>Text 1 (with highlights):</h4>
-                    <div>${data.highlighted_text1}</div>
+                <div class="matching-phrases-section">
+                    <h4><i class="fas fa-search"></i> Matching Phrases & Context</h4>
+                    <div class="matching-phrases-grid">
+                        ${(() => {
+                          // Group matches by type
+                          const exactMatches = data.matches.filter(
+                            (m) => m.match_type === "exact"
+                          );
+                          const semanticMatches = data.matches.filter(
+                            (m) => m.match_type === "semantic"
+                          );
+
+                          let content = "";
+
+                          // Show exact matches first
+                          if (exactMatches.length > 0) {
+                            content +=
+                              '<div class="match-group"><h5><i class="fas fa-check-circle"></i> Exact Matches</h5>';
+                            exactMatches.forEach((match) => {
+                              content += `
+                                        <div class="match-card exact">
+                                            <div class="match-header">
+                                                <div class="match-type exact">
+                                                    <i class="fas fa-check-circle"></i>
+                                                    Exact Match
+                                                </div>
+                                                <div class="match-length">${
+                                                  match.length
+                                                }-gram</div>
+                                            </div>
+                                            
+                                            <div class="match-content">
+                                                <div class="match-phrase">
+                                                    <strong>Phrase:</strong> "${
+                                                      match.phrase
+                                                    }"
+                                                </div>
+                                                <div class="match-context">
+                                                    <div class="context-item">
+                                                        <strong>Text 1 Context:</strong>
+                                                        <div class="context-text">${
+                                                          match.context1 ||
+                                                          "No context available"
+                                                        }</div>
+                                                    </div>
+                                                    <div class="context-item">
+                                                        <strong>Text 2 Context:</strong>
+                                                        <div class="context-text">${
+                                                          match.context2 ||
+                                                          "No context available"
+                                                        }</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                            });
+                            content += "</div>";
+                          }
+
+                          // Show semantic matches
+                          if (semanticMatches.length > 0) {
+                            content +=
+                              '<div class="match-group"><h5><i class="fas fa-sync-alt"></i> Semantic Matches</h5>';
+                            semanticMatches.forEach((match) => {
+                              content += `
+                                        <div class="match-card semantic">
+                                            <div class="match-header">
+                                                <div class="match-type semantic">
+                                                    <i class="fas fa-sync-alt"></i>
+                                                    Semantic Match
+                                                </div>
+                                                <div class="match-length">${
+                                                  match.length
+                                                }-gram</div>
+                                            </div>
+                                            
+                                            <div class="match-content">
+                                                <div class="match-phrase">
+                                                    <strong>Text 1:</strong> "${
+                                                      match.phrase1
+                                                    }"
+                                                </div>
+                                                <div class="match-phrase">
+                                                    <strong>Text 2:</strong> "${
+                                                      match.phrase2
+                                                    }"
+                                                </div>
+                                                <div class="match-similarity">
+                                                    <strong>Similarity:</strong> ${(
+                                                      match.similarity * 100
+                                                    ).toFixed(1)}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                            });
+                            content += "</div>";
+                          }
+
+                          return content;
+                        })()}
+                    </div>
                 </div>
 
-                <div class="highlighted-text">
-                    <h4>Text 2 (with highlights):</h4>
-                    <div>${data.highlighted_text2}</div>
+                <div class="highlighted-texts">
+                    <div class="highlighted-text">
+                        <h4><i class="fas fa-highlighter"></i> Text 1 (with highlights)</h4>
+                        <div class="text-content">${
+                          data.highlighted_text1
+                        }</div>
+                    </div>
+
+                    <div class="highlighted-text">
+                        <h4><i class="fas fa-highlighter"></i> Text 2 (with highlights)</h4>
+                        <div class="text-content">${
+                          data.highlighted_text2
+                        }</div>
+                    </div>
                 </div>
             </div>
         `;
@@ -498,6 +625,147 @@ function displayMultipleResults(data) {
                         ).toFixed(2)}%</div>
                     </div>
                 </div>
+
+                <div class="matching-summary">
+                    <h4><i class="fas fa-chart-pie"></i> Matching Summary</h4>
+                    <div class="summary-stats">
+                        <div class="summary-item">
+                            <span class="summary-label">Total Matches:</span>
+                            <span class="summary-value">${
+                              item.summary.total_matches
+                            }</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Exact Matches:</span>
+                            <span class="summary-value exact">${
+                              item.summary.exact_matches
+                            }</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Semantic Matches:</span>
+                            <span class="summary-value semantic">${
+                              item.summary.semantic_matches
+                            }</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Longest Match:</span>
+                            <span class="summary-value">${
+                              item.summary.longest_match
+                            } words</span>
+                        </div>
+                    </div>
+                </div>
+
+                ${
+                  item.matches.length > 0
+                    ? `
+                <div class="matching-phrases-section">
+                    <h4><i class="fas fa-search"></i> Top Matching Phrases</h4>
+                    <div class="matching-phrases-grid">
+                        ${(() => {
+                          // Group matches by type
+                          const exactMatches = item.matches.filter(
+                            (m) => m.match_type === "exact"
+                          );
+                          const semanticMatches = item.matches.filter(
+                            (m) => m.match_type === "semantic"
+                          );
+
+                          let content = "";
+
+                          // Show exact matches first
+                          if (exactMatches.length > 0) {
+                            content +=
+                              '<div class="match-group"><h5><i class="fas fa-check-circle"></i> Exact Matches</h5>';
+                            exactMatches.slice(0, 3).forEach((match) => {
+                              content += `
+                                        <div class="match-card exact">
+                                            <div class="match-header">
+                                                <div class="match-type exact">
+                                                    <i class="fas fa-check-circle"></i>
+                                                    Exact Match
+                                                </div>
+                                                <div class="match-length">${
+                                                  match.length
+                                                }-gram</div>
+                                            </div>
+                                            
+                                            <div class="match-content">
+                                                <div class="match-phrase">
+                                                    <strong>Phrase:</strong> "${
+                                                      match.phrase
+                                                    }"
+                                                </div>
+                                                <div class="match-context">
+                                                    <div class="context-item">
+                                                        <strong>Input Context:</strong>
+                                                        <div class="context-text">${
+                                                          match.context1 ||
+                                                          "No context available"
+                                                        }</div>
+                                                    </div>
+                                                    <div class="context-item">
+                                                        <strong>Reference Context:</strong>
+                                                        <div class="context-text">${
+                                                          match.context2 ||
+                                                          "No context available"
+                                                        }</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                            });
+                            content += "</div>";
+                          }
+
+                          // Show semantic matches
+                          if (semanticMatches.length > 0) {
+                            content +=
+                              '<div class="match-group"><h5><i class="fas fa-sync-alt"></i> Semantic Matches</h5>';
+                            semanticMatches.slice(0, 3).forEach((match) => {
+                              content += `
+                                        <div class="match-card semantic">
+                                            <div class="match-header">
+                                                <div class="match-type semantic">
+                                                    <i class="fas fa-sync-alt"></i>
+                                                    Semantic Match
+                                                </div>
+                                                <div class="match-length">${
+                                                  match.length
+                                                }-gram</div>
+                                            </div>
+                                            
+                                            <div class="match-content">
+                                                <div class="match-phrase">
+                                                    <strong>Input:</strong> "${
+                                                      match.phrase1
+                                                    }"
+                                                </div>
+                                                <div class="match-phrase">
+                                                    <strong>Reference:</strong> "${
+                                                      match.phrase2
+                                                    }"
+                                                </div>
+                                                <div class="match-similarity">
+                                                    <strong>Similarity:</strong> ${(
+                                                      match.similarity * 100
+                                                    ).toFixed(1)}%
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                            });
+                            content += "</div>";
+                          }
+
+                          return content;
+                        })()}
+                    </div>
+                </div>
+                `
+                    : ""
+                }
             </div>
         `;
   });

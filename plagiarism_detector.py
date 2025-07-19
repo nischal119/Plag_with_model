@@ -329,16 +329,98 @@ class PlagiarismDetector:
             "features": features.tolist(),
         }
 
+    def find_similar_phrases(
+        self, tokens1: List[str], tokens2: List[str], min_length: int = 2
+    ) -> List[Dict]:
+        """Find similar phrases using word-level similarity with improved filtering."""
+        similar_phrases = []
+
+        # Create word frequency dictionaries
+        word_freq1 = Counter(tokens1)
+        word_freq2 = Counter(tokens2)
+
+        # Find common words
+        common_words = set(word_freq1.keys()) & set(word_freq2.keys())
+
+        # Track used phrases to avoid duplicates
+        used_phrases1 = set()
+        used_phrases2 = set()
+
+        # Find phrases with similar word patterns, starting from longer phrases
+        for n in range(min(len(tokens1), len(tokens2)), min_length - 1, -1):
+            ngrams1 = TextPreprocessor.get_ngrams(tokens1, n)
+            ngrams2 = TextPreprocessor.get_ngrams(tokens2, n)
+
+            for ngram1 in ngrams1:
+                for ngram2 in ngrams2:
+                    # Calculate word similarity
+                    words1 = set(ngram1)
+                    words2 = set(ngram2)
+
+                    # Jaccard similarity
+                    intersection = len(words1 & words2)
+                    union = len(words1 | words2)
+
+                    if union > 0:
+                        similarity = intersection / union
+
+                        # More selective threshold for semantic matches
+                        if similarity >= 0.4:  # Increased threshold to 40%
+                            phrase1 = " ".join(ngram1)
+                            phrase2 = " ".join(ngram2)
+
+                            # Check if these phrases are already used or are too similar to existing ones
+                            if (
+                                phrase1 not in used_phrases1
+                                and phrase2 not in used_phrases2
+                                and phrase1 != phrase2
+                            ):
+
+                                # Check if this phrase is not a substring of already used phrases
+                                is_substring = False
+                                for used_phrase in used_phrases1:
+                                    if phrase1 in used_phrase or used_phrase in phrase1:
+                                        is_substring = True
+                                        break
+
+                                for used_phrase in used_phrases2:
+                                    if phrase2 in used_phrase or used_phrase in phrase2:
+                                        is_substring = True
+                                        break
+
+                                if not is_substring:
+                                    similar_phrases.append(
+                                        {
+                                            "phrase1": phrase1,
+                                            "phrase2": phrase2,
+                                            "length": n,
+                                            "similarity": similarity,
+                                            "match_type": "semantic",
+                                        }
+                                    )
+
+                                    # Mark these phrases as used
+                                    used_phrases1.add(phrase1)
+                                    used_phrases2.add(phrase2)
+
+        # Sort by similarity and length, then take only the best matches
+        similar_phrases.sort(key=lambda x: (x["similarity"], x["length"]), reverse=True)
+
+        # Limit the number of semantic matches to avoid overwhelming results
+        return similar_phrases[:10]  # Return only top 10 semantic matches
+
     def find_matching_phrases(
         self, text1: str, text2: str, min_length: int = 3
     ) -> List[Dict[str, str]]:
-        """Find matching phrases between two texts."""
+        """Find matching phrases between two texts with enhanced detection and deduplication."""
         tokens1 = TextPreprocessor.preprocess_text(text1)
         tokens2 = TextPreprocessor.preprocess_text(text2)
 
         matches = []
+        exact_matches = []
+        semantic_matches = []
 
-        # Find common n-grams
+        # Find common n-grams (exact matches)
         for n in range(min_length, min(len(tokens1), len(tokens2)) + 1):
             ngrams1 = TextPreprocessor.get_ngrams(tokens1, n)
             ngrams2 = TextPreprocessor.get_ngrams(tokens2, n)
@@ -348,11 +430,102 @@ class PlagiarismDetector:
 
             for ngram in common:
                 phrase = " ".join(ngram)
-                matches.append({"phrase": phrase, "length": n, "type": f"{n}-gram"})
+                exact_matches.append(
+                    {
+                        "phrase": phrase,
+                        "length": n,
+                        "type": f"exact_{n}-gram",
+                        "match_type": "exact",
+                        "similarity": 1.0,
+                    }
+                )
 
-        # Sort by length (longer matches first)
-        matches.sort(key=lambda x: x["length"], reverse=True)
-        return matches[:10]  # Return top 10 matches
+        # Find similar phrases using the improved function
+        similar_phrases = self.find_similar_phrases(tokens1, tokens2, min_length=2)
+
+        for phrase_info in similar_phrases:
+            # Check if this is not already an exact match
+            is_exact = any(
+                match["phrase"] == phrase_info["phrase1"]
+                or match["phrase"] == phrase_info["phrase2"]
+                for match in exact_matches
+            )
+
+            if not is_exact:
+                semantic_matches.append(
+                    {
+                        "phrase1": phrase_info["phrase1"],
+                        "phrase2": phrase_info["phrase2"],
+                        "length": phrase_info["length"],
+                        "type": f"semantic_{phrase_info['length']}-gram",
+                        "match_type": "semantic",
+                        "similarity": phrase_info["similarity"],
+                    }
+                )
+
+        # Find individual word matches only for significant words (longer than 3 chars)
+        words1 = set(tokens1)
+        words2 = set(tokens2)
+        common_words = words1.intersection(words2)
+
+        # Only add significant individual word matches
+        significant_words = [word for word in common_words if len(word) > 3]
+
+        # Limit individual word matches to avoid spam
+        for word in significant_words[:5]:  # Only top 5 significant words
+            semantic_matches.append(
+                {
+                    "phrase1": word,
+                    "phrase2": word,
+                    "length": 1,
+                    "type": "semantic_word",
+                    "match_type": "semantic",
+                    "similarity": 1.0,
+                }
+            )
+
+        # Combine and sort matches
+        matches = exact_matches + semantic_matches
+        matches.sort(key=lambda x: (x["length"], x["similarity"]), reverse=True)
+
+        # Return a reasonable number of matches to avoid overwhelming the UI
+        return matches[:15]  # Return top 15 matches
+
+    def get_matching_context(
+        self, text1: str, text2: str, phrase: str
+    ) -> Dict[str, str]:
+        """Get context around matching phrases."""
+        # Find the phrase in both texts and extract surrounding context
+        context_size = 50  # characters before and after
+
+        def find_context(text, phrase):
+            # Case-insensitive search
+            import re
+
+            pattern = re.compile(re.escape(phrase), re.IGNORECASE)
+            match = pattern.search(text)
+
+            if not match:
+                return phrase, ""
+
+            start = match.start()
+            # Extract context
+            context_start = max(0, start - context_size)
+            context_end = min(len(text), start + len(phrase) + context_size)
+
+            context = text[context_start:context_end]
+            return phrase, context
+
+        phrase1, context1 = find_context(text1, phrase)
+        phrase2, context2 = find_context(text2, phrase)
+
+        return {
+            "phrase": phrase,
+            "context1": context1,
+            "context2": context2,
+            "highlight1": phrase1,
+            "highlight2": phrase2,
+        }
 
     def get_model_status(self) -> Dict[str, any]:
         """Get current model status."""
