@@ -193,6 +193,17 @@ textarea:focus {
   font-size: 0.9rem;
 }
 
+/* File name in textarea */
+textarea[style*="font-style: italic"] {
+  background-color: #f0fff4;
+  border-color: #38a169;
+}
+
+textarea[style*="font-style: italic"]::placeholder {
+  color: #38a169;
+  opacity: 0.7;
+}
+
 /* Model status */
 .model-status {
   margin-bottom: 20px;

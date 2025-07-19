@@ -63,6 +63,69 @@ function setupFileUploads() {
   multipleFile.addEventListener("change", (e) =>
     handleFileUpload(e, multipleFileName)
   );
+
+  // Add event listeners to textareas to clear file inputs when manually typing
+  const text1 = document.getElementById("text1");
+  const text2 = document.getElementById("text2");
+  const classifyText = document.getElementById("classifyText");
+  const multipleText = document.getElementById("multipleText");
+
+  text1.addEventListener("input", () => {
+    if (text1.value && !text1.value.startsWith("📄")) {
+      file1.value = "";
+      file1Name.textContent = "";
+      updateCompareButtonText();
+    }
+  });
+
+  text2.addEventListener("input", () => {
+    if (text2.value && !text2.value.startsWith("📄")) {
+      file2.value = "";
+      file2Name.textContent = "";
+      updateCompareButtonText();
+    }
+  });
+
+  classifyText.addEventListener("input", () => {
+    if (classifyText.value && !classifyText.value.startsWith("📄")) {
+      classifyFile.value = "";
+      classifyFileName.textContent = "";
+      updateCompareButtonText();
+    }
+  });
+
+  multipleText.addEventListener("input", () => {
+    if (multipleText.value && !multipleText.value.startsWith("📄")) {
+      multipleFile.value = "";
+      multipleFileName.textContent = "";
+      updateCompareButtonText();
+    }
+  });
+}
+
+function clearAllInputs() {
+  // Clear all textareas
+  const textareas = document.querySelectorAll("textarea");
+  textareas.forEach((textarea) => {
+    textarea.value = "";
+    textarea.style.fontStyle = "normal";
+    textarea.style.color = "#2d3748";
+  });
+
+  // Clear all file inputs
+  const fileInputs = document.querySelectorAll('input[type="file"]');
+  fileInputs.forEach((input) => {
+    input.value = "";
+  });
+
+  // Clear all file name displays
+  const fileNameDisplays = document.querySelectorAll(".file-upload span");
+  fileNameDisplays.forEach((span) => {
+    span.textContent = "";
+  });
+
+  // Update button text
+  updateCompareButtonText();
 }
 
 function switchMode(mode) {
@@ -78,6 +141,9 @@ function switchMode(mode) {
 
   currentMode = mode;
   hideResults();
+
+  // Clear all inputs when switching modes
+  clearAllInputs();
 }
 
 function handleFileUpload(event, nameElement) {
@@ -85,8 +151,65 @@ function handleFileUpload(event, nameElement) {
   if (file) {
     nameElement.textContent = file.name;
     nameElement.style.color = "#38a169";
+
+    // Update the corresponding textarea with file name
+    const textarea = event.target.parentElement.previousElementSibling;
+    if (textarea && textarea.tagName === "TEXTAREA") {
+      textarea.value = `📄 ${file.name}`;
+      textarea.style.fontStyle = "italic";
+      textarea.style.color = "#38a169";
+    }
+
+    // Update button text if it's a compare button
+    updateCompareButtonText();
   } else {
     nameElement.textContent = "";
+
+    // Clear the textarea if file is removed
+    const textarea = event.target.parentElement.previousElementSibling;
+    if (textarea && textarea.tagName === "TEXTAREA") {
+      textarea.value = "";
+      textarea.style.fontStyle = "normal";
+      textarea.style.color = "#2d3748";
+    }
+
+    // Update button text
+    updateCompareButtonText();
+  }
+}
+
+function updateCompareButtonText() {
+  // Check if any files are uploaded in pairwise mode
+  const file1 = document.getElementById("file1");
+  const file2 = document.getElementById("file2");
+  const compareBtn = document.getElementById("compareBtn");
+
+  if (file1.files.length > 0 || file2.files.length > 0) {
+    compareBtn.innerHTML = '<i class="fas fa-file-alt"></i> Compare Documents';
+  } else {
+    compareBtn.innerHTML = '<i class="fas fa-search"></i> Compare Texts';
+  }
+
+  // Check classification mode
+  const classifyFile = document.getElementById("classifyFile");
+  const classifyBtn = document.getElementById("classifyBtn");
+
+  if (classifyFile.files.length > 0) {
+    classifyBtn.innerHTML = '<i class="fas fa-file-alt"></i> Classify Document';
+  } else {
+    classifyBtn.innerHTML = '<i class="fas fa-tag"></i> Classify Text';
+  }
+
+  // Check multiple reference mode
+  const multipleFile = document.getElementById("multipleFile");
+  const multipleBtn = document.getElementById("multipleBtn");
+
+  if (multipleFile.files.length > 0) {
+    multipleBtn.innerHTML =
+      '<i class="fas fa-file-alt"></i> Compare Document Against References';
+  } else {
+    multipleBtn.innerHTML =
+      '<i class="fas fa-list"></i> Compare Against References';
   }
 }
 
