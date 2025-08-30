@@ -163,7 +163,7 @@ class LogisticRegression:
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> None:
         """Train the logistic regression model."""
-        m, n = X.shape
+        n = X.shape
 
         # Initialize parameters
         self.weights = np.zeros(n)
