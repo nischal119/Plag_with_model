@@ -1,0 +1,226 @@
+{% extends "index.html" %}
+
+{% block title %}Check History{% endblock %}
+
+{% block main_content %}
+<div class="history-container">
+  <header class="history-header">
+    <h1><i class="fas fa-history"></i> Plagiarism Check History</h1>
+    <p>View all your previous plagiarism detection analyses</p>
+    <a href="{{ url_for('index') }}" class="btn btn-primary">
+      <i class="fas fa-plus"></i> New Check
+    </a>
+  </header>
+
+  {% if checks.items %}
+  <section class="card history-stats">
+    <h2><i class="fas fa-chart-bar"></i> Quick Stats</h2>
+    <div class="stats-grid">
+      <div class="stat-item">
+        <i class="fas fa-search"></i>
+        <div>
+          <h3>{{ checks.total }}</h3>
+          <p>Total Checks</p>
+        </div>
+      </div>
+      <div class="stat-item">
+        <i class="fas fa-calendar"></i>
+        <div>
+          <h3>{{ checks.items[0].created_at.strftime('%b %d') if checks.items else '-' }}</h3>
+          <p>Last Check</p>
+        </div>
+      </div>
+      <div class="stat-item">
+        <i class="fas fa-percentage"></i>
+        <div>
+          <h3>{{ "%.0f" | format((checks.items | map(attribute='plagiarism_score') | sum / checks.items | length) * 100)
+            if checks.items else '0' }}%</h3>
+          <p>Avg. Score</p>
+        </div>
+      </div>
+      <div class="stat-item">
+        <i class="fas fa-flag"></i>
+        <div>
+          <h3>{{ (checks.items | selectattr('plagiarism_score', '>', 0.7) | list | length) }}</h3>
+          <p>High Risk</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card history-list">
+    <div class="history-list-header">
+      <h2><i class="fas fa-list"></i> Check History</h2>
+      <div class="history-filters">
+        <!-- Future: Add filter options -->
+      </div>
+    </div>
+
+    <div class="history-table-container">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Files</th>
+            <th>Score</th>
+            <th>Matches</th>
+            <th>Preview</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for check in checks.items %}
+          <tr class="history-row" data-check-id="{{ check.id }}">
+            <td class="history-date">
+              <div class="date-info">
+                <span class="date">{{ check.created_at.strftime('%b %d, %Y') }}</span>
+                <span class="time">{{ check.created_at.strftime('%I:%M %p') }}</span>
+              </div>
+            </td>
+            <td class="history-type">
+              <span class="type-badge type-{{ check.check_type }}">
+                <i
+                  class="fas fa-{% if check.check_type == 'pairwise' %}exchange-alt{% elif check.check_type == 'multiple' %}list{% else %}tag{% endif %}"></i>
+                {{ check.check_type.title() }}
+              </span>
+            </td>
+            <td class="history-files">
+              {% if check.file_name %}
+              <div class="file-info">
+                <i class="fas fa-file"></i>
+                <span>{{ check.file_name | truncate(20) }}</span>
+              </div>
+              {% else %}
+              <span class="text-input">Text Input</span>
+              {% endif %}
+              {% if check.reference_file_name %}
+              <div class="file-info ref-file">
+                <i class="fas fa-file-alt"></i>
+                <span>{{ check.reference_file_name | truncate(20) }}</span>
+              </div>
+              {% endif %}
+            </td>
+            <td class="history-score">
+              <div class="score-display">
+                <div
+                  class="score-badge {{ 'high' if check.plagiarism_score > 0.7 else 'medium' if check.plagiarism_score > 0.3 else 'low' }}">
+                  {{ "%.0f" | format(check.plagiarism_score * 100) }}%
+                </div>
+                <div class="score-bar">
+                  <div
+                    class="score-fill {{ 'high' if check.plagiarism_score > 0.7 else 'medium' if check.plagiarism_score > 0.3 else 'low' }}"
+                    style="width: {{ check.plagiarism_score * 100 }}%"></div>
+                </div>
+              </div>
+            </td>
+            <td class="history-matches">
+              <div class="matches-info">
+                <span class="total-matches">{{ check.total_matches }}</span>
+                <div class="matches-breakdown">
+                  {% if check.exact_matches > 0 %}
+                  <span class="exact-matches" title="Exact Matches">
+                    <i class="fas fa-equals"></i> {{ check.exact_matches }}
+                  </span>
+                  {% endif %}
+                  {% if check.semantic_matches > 0 %}
+                  <span class="semantic-matches" title="Semantic Matches">
+                    <i class="fas fa-brain"></i> {{ check.semantic_matches }}
+                  </span>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="history-preview">
+              <button class="btn btn-small btn-outline preview-btn" onclick="togglePreview({{ check.id }})">
+                <i class="fas fa-eye"></i> Preview
+              </button>
+            </td>
+          </tr>
+          <tr class="preview-row" id="preview-{{ check.id }}" style="display: none;">
+            <td colspan="6">
+              <div class="preview-content">
+                <div class="preview-section">
+                  <h4>Original Text</h4>
+                  <div class="preview-text">{{ check.original_text }}</div>
+                </div>
+                {% if check.reference_text %}
+                <div class="preview-section">
+                  <h4>Reference Text</h4>
+                  <div class="preview-text">{{ check.reference_text }}</div>
+                </div>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if checks.pages > 1 %}
+    <div class="pagination-container">
+      <div class="pagination">
+        {% if checks.has_prev %}
+        <a href="{{ url_for('check_history', page=checks.prev_num) }}" class="page-btn">
+          <i class="fas fa-chevron-left"></i> Previous
+        </a>
+        {% endif %}
+
+        {% for page_num in checks.iter_pages() %}
+        {% if page_num %}
+        {% if page_num != checks.page %}
+        <a href="{{ url_for('check_history', page=page_num) }}" class="page-btn">{{ page_num }}</a>
+        {% else %}
+        <span class="page-btn active">{{ page_num }}</span>
+        {% endif %}
+        {% else %}
+        <span class="page-ellipsis">…</span>
+        {% endif %}
+        {% endfor %}
+
+        {% if checks.has_next %}
+        <a href="{{ url_for('check_history', page=checks.next_num) }}" class="page-btn">
+          Next <i class="fas fa-chevron-right"></i>
+        </a>
+        {% endif %}
+      </div>
+      <div class="pagination-info">
+        Showing {{ ((checks.page - 1) * checks.per_page) + 1 }} to {{ checks.page * checks.per_page if checks.page *
+        checks.per_page <= checks.total else checks.total }} of {{ checks.total }} results </div>
+      </div>
+      {% endif %}
+  </section>
+
+  {% else %}
+  <section class="card no-history">
+    <div class="no-history-content">
+      <i class="fas fa-clipboard-list"></i>
+      <h2>No Check History</h2>
+      <p>You haven't performed any plagiarism checks yet. Start by analyzing some text!</p>
+      <a href="{{ url_for('index') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Perform Your First Check
+      </a>
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+<script>
+  function togglePreview(checkId) {
+    const previewRow = document.getElementById('preview-' + checkId);
+    const btn = event.target.closest('.preview-btn');
+    const icon = btn.querySelector('i');
+
+    if (previewRow.style.display === 'none') {
+      previewRow.style.display = 'table-row';
+      icon.className = 'fas fa-eye-slash';
+      btn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide';
+    } else {
+      previewRow.style.display = 'none';
+      icon.className = 'fas fa-eye';
+      btn.innerHTML = '<i class="fas fa-eye"></i> Preview';
+    }
+  }
+</script>
+{% endblock %}

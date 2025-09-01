@@ -2,20 +2,60 @@ import io
 import json
 import os
 import tempfile
+from datetime import datetime
 
 import docx
 import PyPDF2
-from flask import Flask, jsonify, render_template, request, send_from_directory
+from flask import (
+    Flask,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
+from flask_login import (
+    LoginManager,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
 from werkzeug.utils import secure_filename
 
+from forms import ChangePasswordForm, LoginForm, ProfileForm, SignupForm
+from models import PlagiarismCheck, User, db, init_db
 from plagiarism_detector import PlagiarismDetector, TextPreprocessor
 
 app = Flask(__name__)
+
+# Configuration
 app.config["UPLOAD_FOLDER"] = "uploads"
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
+app.config["SECRET_KEY"] = (
+    os.environ.get("SECRET_KEY") or "dev-secret-key-change-in-production"
+)
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    os.environ.get("DATABASE_URL") or "sqlite:///plagiarism_detector.db"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["WTF_CSRF_ENABLED"] = True
+
+# Initialize extensions
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
+login_manager.login_message = "Please log in to access this page."
+login_manager.login_message_category = "info"
 
 # Ensure upload directory exists
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+# Initialize database
+init_db(app)
 
 # Initialize plagiarism detector (now handled above with persistence)
 
@@ -25,6 +65,12 @@ model_trained = False
 # Initialize detector with model persistence
 detector = PlagiarismDetector()
 model_trained = detector.is_trained
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Load user by ID for Flask-Login."""
+    return User.query.get(int(user_id))
 
 
 def allowed_file(filename):
@@ -145,13 +191,156 @@ def highlight_matching_phrases(text, matches):
     return highlighted_text
 
 
+# Authentication Routes
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """User login page."""
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+
+    form = LoginForm()
+    if form.validate_on_submit():
+        # Check if input is email or username
+        if "@" in form.username.data:
+            user = User.query.filter_by(email=form.username.data).first()
+        else:
+            user = User.query.filter_by(username=form.username.data).first()
+
+        if user and user.check_password(form.password.data) and user.is_active:
+            # Update last login time
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+
+            login_user(user, remember=form.remember_me.data)
+            flash(f"Welcome back, {user.get_full_name()}!", "success")
+
+            # Redirect to next page or index
+            next_page = request.args.get("next")
+            if not next_page or not next_page.startswith("/"):
+                next_page = url_for("index")
+            return redirect(next_page)
+        else:
+            flash("Invalid username/email or password.", "error")
+
+    return render_template("auth/login.html", form=form)
+
+
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    """User registration page."""
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+
+    form = SignupForm()
+    if form.validate_on_submit():
+        user = User(
+            username=form.username.data,
+            email=form.email.data,
+            password=form.password.data,
+            first_name=form.first_name.data,
+            last_name=form.last_name.data,
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        flash(
+            f"Account created successfully! Welcome, {user.get_full_name()}!", "success"
+        )
+        login_user(user)
+        return redirect(url_for("index"))
+
+    return render_template("auth/signup.html", form=form)
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    """User logout."""
+    username = current_user.username
+    logout_user()
+    flash(f"You have been logged out successfully, {username}.", "info")
+    return redirect(url_for("login"))
+
+
+@app.route("/profile")
+@login_required
+def profile():
+    """User profile page."""
+    # Get user's plagiarism check history
+    checks = (
+        PlagiarismCheck.query.filter_by(user_id=current_user.id)
+        .order_by(PlagiarismCheck.created_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    return render_template("auth/profile.html", checks=checks)
+
+
+@app.route("/profile/edit", methods=["GET", "POST"])
+@login_required
+def edit_profile():
+    """Edit user profile."""
+    form = ProfileForm(original_email=current_user.email)
+
+    if form.validate_on_submit():
+        current_user.first_name = form.first_name.data
+        current_user.last_name = form.last_name.data
+        current_user.email = form.email.data
+        db.session.commit()
+        flash("Your profile has been updated successfully!", "success")
+        return redirect(url_for("profile"))
+    elif request.method == "GET":
+        form.first_name.data = current_user.first_name
+        form.last_name.data = current_user.last_name
+        form.email.data = current_user.email
+
+    return render_template("auth/edit_profile.html", form=form)
+
+
+@app.route("/profile/change_password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    """Change user password."""
+    form = ChangePasswordForm()
+
+    if form.validate_on_submit():
+        if current_user.check_password(form.current_password.data):
+            current_user.set_password(form.new_password.data)
+            db.session.commit()
+            flash("Your password has been updated successfully!", "success")
+            return redirect(url_for("profile"))
+        else:
+            flash("Current password is incorrect.", "error")
+
+    return render_template("auth/change_password.html", form=form)
+
+
+@app.route("/profile/history")
+@login_required
+def check_history():
+    """View plagiarism check history."""
+    page = request.args.get("page", 1, type=int)
+    checks = (
+        PlagiarismCheck.query.filter_by(user_id=current_user.id)
+        .order_by(PlagiarismCheck.created_at.desc())
+        .paginate(page=page, per_page=20, error_out=False)
+    )
+
+    return render_template("auth/history.html", checks=checks)
+
+
 @app.route("/")
+@login_required
 def index():
     """Main page."""
     return render_template("index.html")
 
 
 @app.route("/train", methods=["POST"])
+@login_required
 def train_model():
     """Train the plagiarism detection model."""
     global detector, model_trained
@@ -176,6 +365,7 @@ def train_model():
 
 
 @app.route("/model/status", methods=["GET"])
+@login_required
 def get_model_status():
     """Get current model status."""
     global detector
@@ -184,6 +374,7 @@ def get_model_status():
 
 
 @app.route("/model/reset", methods=["POST"])
+@login_required
 def reset_model():
     """Reset the model."""
     global detector, model_trained
@@ -202,6 +393,7 @@ def reset_model():
 
 
 @app.route("/detect", methods=["POST"])
+@login_required
 def detect_plagiarism():
     """Detect plagiarism between two texts or files."""
     global detector, model_trained
@@ -328,6 +520,39 @@ def detect_plagiarism():
             highlighted_text1 = highlight_matching_phrases(text1, text1_matches)
             highlighted_text2 = highlight_matching_phrases(text2, text2_matches)
 
+            # Save plagiarism check to history
+            try:
+                check = PlagiarismCheck(
+                    user_id=current_user.id,
+                    check_type="pairwise",
+                    original_text=text1,
+                    reference_text=text2,
+                    plagiarism_score=result.get("plagiarism_probability", 0),
+                    similarity_score=result.get("similarity_score", 0),
+                    total_matches=len(detailed_matches),
+                    exact_matches=len(
+                        [m for m in detailed_matches if m["match_type"] == "exact"]
+                    ),
+                    semantic_matches=len(
+                        [m for m in detailed_matches if m["match_type"] == "semantic"]
+                    ),
+                    file_name=(
+                        request.files.get("file1", {}).filename
+                        if "file1" in request.files
+                        else None
+                    ),
+                    reference_file_name=(
+                        request.files.get("file2", {}).filename
+                        if "file2" in request.files
+                        else None
+                    ),
+                )
+                db.session.add(check)
+                db.session.commit()
+            except Exception as e:
+                print(f"Error saving plagiarism check: {e}")
+                # Don't fail the request if history saving fails
+
             return jsonify(
                 {
                     "success": True,
@@ -420,6 +645,7 @@ def detect_plagiarism():
 
 
 @app.route("/compare_multiple", methods=["POST"])
+@login_required
 def compare_multiple():
     """Compare uploaded text against multiple reference documents."""
     global detector, model_trained

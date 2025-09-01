@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{% endblock %} - Plagiarism Detection System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='auth.css') }}">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body class="auth-body">
+  <div class="auth-container">
+    <div class="auth-header">
+      <h1><i class="fas fa-search"></i> Plagiarism Detection System</h1>
+      <p>Advanced text similarity analysis with secure authentication</p>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-messages">
+      {% for category, message in messages %}
+      <div class="flash-message flash-{{ category }}">
+        <i
+          class="fas fa-{% if category == 'error' %}exclamation-triangle{% elif category == 'success' %}check-circle{% elif category == 'warning' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+        {{ message }}
+        <button class="flash-close" onclick="this.parentElement.remove()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="auth-card">
+      {% block content %}{% endblock %}
+    </div>
+
+    <div class="auth-footer">
+      <p>&copy; 2024 Plagiarism Detection System. All rights reserved.</p>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='auth.js') }}"></script>
+</body>
+
+</html>

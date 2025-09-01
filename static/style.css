@@ -6,59 +6,133 @@
 }
 
 body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-family: "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: #f7fafc;
   min-height: 100vh;
-  color: #333;
+  color: #2d3748;
   line-height: 1.6;
+  margin: 0;
+  padding: 0;
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 0 2rem 2rem 2rem;
+  background: #f7fafc;
 }
 
-/* Header */
+/* Modern Dashboard Header */
 header {
   text-align: center;
-  margin-bottom: 30px;
+  margin: 2rem 0 3rem 0;
+  padding: 3rem 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 24px;
   color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3);
+}
+
+header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+  opacity: 0.3;
 }
 
 header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  font-weight: 800;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 1;
+}
+
+header h1 i {
+  background: linear-gradient(45deg, #ffd700, #ffed4e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-right: 1rem;
+  animation: iconGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes iconGlow {
+  from {
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+  }
+  to {
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+  }
 }
 
 header p {
-  font-size: 1.1rem;
-  opacity: 0.9;
+  font-size: 1.3rem;
+  opacity: 0.95;
+  font-weight: 400;
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
-/* Cards */
+/* Modern Dashboard Cards */
 .card {
   background: white;
-  border-radius: 15px;
-  padding: 25px;
-  margin-bottom: 25px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 60px rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.2);
+}
+
+.card:hover::before {
+  opacity: 1;
 }
 
 .card h2 {
-  color: #4a5568;
-  margin-bottom: 15px;
-  font-size: 1.5rem;
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  font-size: 1.6rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.75rem;
+  position: relative;
+  z-index: 1;
+}
+
+.card h2 i {
+  color: #667eea;
+  font-size: 1.4rem;
 }
 
 .card h3 {
