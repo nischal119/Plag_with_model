@@ -32,7 +32,7 @@ from plagiarism_detector import PlagiarismDetector, TextPreprocessor
 
 app = Flask(__name__)
 
-# Configuration
+# Configuration config
 app.config["UPLOAD_FOLDER"] = "uploads"
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB max file size
 app.config["SECRET_KEY"] = (
