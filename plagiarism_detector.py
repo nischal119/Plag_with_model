@@ -163,10 +163,17 @@ class LogisticRegression:
 
     def fit(self, X: np.ndarray, y: np.ndarray) -> None:
         """Train the logistic regression model."""
-        n = X.shape
+        # Ensure inputs have correct shapes
+        if X.ndim != 2:
+            raise ValueError(
+                "X must be a 2D array of shape (num_samples, num_features)"
+            )
 
-        # Initialize parameters
-        self.weights = np.zeros(n)
+        num_samples, num_features = X.shape
+        y = y.reshape(-1)  # ensure shape (num_samples,)
+
+        # Initialize parameters as 1D weight vector (num_features,)
+        self.weights = np.zeros(num_features)
         self.bias = 0.0
 
         # Gradient descent
