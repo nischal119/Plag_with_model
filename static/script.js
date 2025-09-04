@@ -9,7 +9,6 @@ const modeContents = document.querySelectorAll(".mode-content");
 const trainBtn = document.getElementById("trainBtn");
 const resetBtn = document.getElementById("resetBtn");
 const compareBtn = document.getElementById("compareBtn");
-const classifyBtn = document.getElementById("classifyBtn");
 const multipleBtn = document.getElementById("multipleBtn");
 const addReferenceBtn = document.getElementById("addReferenceBtn");
 const clearAllReferencesBtn = document.getElementById("clearAllReferencesBtn");
@@ -27,13 +26,11 @@ const loadingOverlay = document.getElementById("loadingOverlay");
 // File input elements
 const file1 = document.getElementById("file1");
 const file2 = document.getElementById("file2");
-const classifyFile = document.getElementById("classifyFile");
 const multipleFile = document.getElementById("multipleFile");
 
 // File name display elements
 const file1Name = document.getElementById("file1Name");
 const file2Name = document.getElementById("file2Name");
-const classifyFileName = document.getElementById("classifyFileName");
 const multipleFileName = document.getElementById("multipleFileName");
 
 // Initialize the application
@@ -55,9 +52,6 @@ function setupEventListeners() {
 
   // Detection buttons
   compareBtn.addEventListener("click", () => detectPlagiarism("pairwise"));
-  classifyBtn.addEventListener("click", () =>
-    detectPlagiarism("classification")
-  );
   multipleBtn.addEventListener("click", compareMultiple);
 
   // Reference file management
@@ -70,9 +64,6 @@ function setupFileUploads() {
   // File upload handlers
   file1.addEventListener("change", (e) => handleFileUpload(e, file1Name));
   file2.addEventListener("change", (e) => handleFileUpload(e, file2Name));
-  classifyFile.addEventListener("change", (e) =>
-    handleFileUpload(e, classifyFileName)
-  );
   multipleFile.addEventListener("change", (e) =>
     handleFileUpload(e, multipleFileName)
   );
@@ -80,7 +71,6 @@ function setupFileUploads() {
   // Add event listeners to textareas to clear file inputs when manually typing
   const text1 = document.getElementById("text1");
   const text2 = document.getElementById("text2");
-  const classifyText = document.getElementById("classifyText");
   const multipleText = document.getElementById("multipleText");
 
   text1.addEventListener("input", () => {
@@ -95,14 +85,6 @@ function setupFileUploads() {
     if (text2.value && !text2.value.startsWith("📄")) {
       file2.value = "";
       file2Name.textContent = "";
-      updateCompareButtonText();
-    }
-  });
-
-  classifyText.addEventListener("input", () => {
-    if (classifyText.value && !classifyText.value.startsWith("📄")) {
-      classifyFile.value = "";
-      classifyFileName.textContent = "";
       updateCompareButtonText();
     }
   });
@@ -400,15 +382,7 @@ function updateCompareButtonText() {
     compareBtn.innerHTML = '<i class="fas fa-search"></i> Compare Texts';
   }
 
-  // Check classification mode
-  const classifyFile = document.getElementById("classifyFile");
-  const classifyBtn = document.getElementById("classifyBtn");
-
-  if (classifyFile.files.length > 0) {
-    classifyBtn.innerHTML = '<i class="fas fa-file-alt"></i> Classify Document';
-  } else {
-    classifyBtn.innerHTML = '<i class="fas fa-tag"></i> Classify Text';
-  }
+  // Classification mode removed
 
   // Check multiple reference mode
   const multipleFile = document.getElementById("multipleFile");
@@ -590,20 +564,6 @@ async function detectPlagiarism(mode) {
       if (file2.files[0]) {
         formData.append("file2", file2.files[0]);
       }
-    } else if (mode === "classification") {
-      const text = document.getElementById("classifyText").value;
-
-      if (!text && !classifyFile.files[0]) {
-        alert("Please provide text or file for classification");
-        hideLoading();
-        return;
-      }
-
-      formData.append("text", text);
-
-      if (classifyFile.files[0]) {
-        formData.append("file", classifyFile.files[0]);
-      }
     }
 
     const response = await fetch("/detect", {
@@ -693,11 +653,9 @@ function displayResults(data, mode) {
                 <div class="result-header">
                     <div class="result-title">Plagiarism Detection Result</div>
                     <div class="result-score ${getScoreClass(
-                      data.result.plagiarism_probability
+                      data.result.overall_similarity
                     )}">
-                        ${(data.result.plagiarism_probability * 100).toFixed(
-                          1
-                        )}%
+                        ${(data.result.overall_similarity * 100).toFixed(1)}%
                     </div>
                 </div>
                 
@@ -731,6 +689,12 @@ function displayResults(data, mode) {
                 <div class="matching-summary">
                     <h4><i class="fas fa-chart-pie"></i> Matching Summary</h4>
                     <div class="summary-stats">
+                        <div class="summary-item">
+                            <span class="summary-label">Overall Similarity:</span>
+                            <span class="summary-value">${(
+                              data.result.overall_similarity * 100
+                            ).toFixed(1)}%</span>
+                        </div>
                         <div class="summary-item">
                             <span class="summary-label">Total Matches:</span>
                             <span class="summary-value">${
@@ -799,6 +763,7 @@ function displayResults(data, mode) {
                                                     <div class="context-item">
                                                         <strong>Text 1 Context:</strong>
                                                         <div class="context-text">${
+                                                          match.highlighted_context1 ||
                                                           match.context1 ||
                                                           "No context available"
                                                         }</div>
@@ -806,6 +771,7 @@ function displayResults(data, mode) {
                                                     <div class="context-item">
                                                         <strong>Text 2 Context:</strong>
                                                         <div class="context-text">${
+                                                          match.highlighted_context2 ||
                                                           match.context2 ||
                                                           "No context available"
                                                         }</div>
@@ -876,54 +842,6 @@ function displayResults(data, mode) {
                         <div class="text-content">${
                           data.highlighted_text2
                         }</div>
-                    </div>
-                </div>
-            </div>
-        `;
-  } else if (mode === "classification") {
-    content = `
-            <div class="result-card">
-                <div class="result-header">
-                    <div class="result-title">Classification Result</div>
-                    <div class="result-score ${getScoreClass(
-                      data.result.plagiarism_probability
-                    )}">
-                        ${(data.result.plagiarism_probability * 100).toFixed(
-                          1
-                        )}%
-                    </div>
-                </div>
-                
-                <p><strong>Classification:</strong> ${
-                  data.result.is_plagiarized
-                    ? "Likely Plagiarized"
-                    : "Likely Original"
-                }</p>
-                
-                <div class="similarity-scores">
-                    <div class="similarity-item">
-                        <div class="similarity-label">Unigram Jaccard</div>
-                        <div class="similarity-value">${(
-                          data.result.similarity_scores.unigram_jaccard * 100
-                        ).toFixed(2)}%</div>
-                    </div>
-                    <div class="similarity-item">
-                        <div class="similarity-label">Bigram Jaccard</div>
-                        <div class="similarity-value">${(
-                          data.result.similarity_scores.bigram_jaccard * 100
-                        ).toFixed(2)}%</div>
-                    </div>
-                    <div class="similarity-item">
-                        <div class="similarity-label">Trigram Jaccard</div>
-                        <div class="similarity-value">${(
-                          data.result.similarity_scores.trigram_jaccard * 100
-                        ).toFixed(2)}%</div>
-                    </div>
-                    <div class="similarity-item">
-                        <div class="similarity-label">Cosine Similarity</div>
-                        <div class="similarity-value">${(
-                          data.result.similarity_scores.cosine_similarity * 100
-                        ).toFixed(2)}%</div>
                     </div>
                 </div>
             </div>

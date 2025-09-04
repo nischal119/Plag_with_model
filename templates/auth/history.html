@@ -162,7 +162,7 @@
     <div class="pagination-container">
       <div class="pagination">
         {% if checks.has_prev %}
-        <a href="{{ url_for('check_history', page=checks.prev_num) }}" class="page-btn">
+        <a href="{{ url_for('auth.check_history', page=checks.prev_num) }}" class="page-btn">
           <i class="fas fa-chevron-left"></i> Previous
         </a>
         {% endif %}
@@ -170,7 +170,7 @@
         {% for page_num in checks.iter_pages() %}
         {% if page_num %}
         {% if page_num != checks.page %}
-        <a href="{{ url_for('check_history', page=page_num) }}" class="page-btn">{{ page_num }}</a>
+        <a href="{{ url_for('auth.check_history', page=page_num) }}" class="page-btn">{{ page_num }}</a>
         {% else %}
         <span class="page-btn active">{{ page_num }}</span>
         {% endif %}
@@ -180,7 +180,7 @@
         {% endfor %}
 
         {% if checks.has_next %}
-        <a href="{{ url_for('check_history', page=checks.next_num) }}" class="page-btn">
+        <a href="{{ url_for('auth.check_history', page=checks.next_num) }}" class="page-btn">
           Next <i class="fas fa-chevron-right"></i>
         </a>
         {% endif %}

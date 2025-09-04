@@ -324,9 +324,24 @@ class PlagiarismDetector:
         trigram_jaccard = features[2]
         cosine_sim = features[3]
 
+        # Compute an overall similarity in [0,1]
+        # Only include n-gram Jaccards that are actually defined for both texts
+        tokens1 = TextPreprocessor.preprocess_text(text1)
+        tokens2 = TextPreprocessor.preprocess_text(text2)
+
+        valid_scores = [unigram_jaccard, cosine_sim]
+        if len(tokens1) >= 2 and len(tokens2) >= 2:
+            valid_scores.append(bigram_jaccard)
+        if len(tokens1) >= 3 and len(tokens2) >= 3:
+            valid_scores.append(trigram_jaccard)
+
+        overall_similarity = float(np.mean(valid_scores)) if valid_scores else 0.0
+
         return {
             "is_plagiarized": bool(prediction),
             "plagiarism_probability": float(probability),
+            "overall_similarity": overall_similarity,
+            "similarity_score": overall_similarity,  # backward-compatible key used elsewhere
             "similarity_scores": {
                 "unigram_jaccard": float(unigram_jaccard),
                 "bigram_jaccard": float(bigram_jaccard),
@@ -503,33 +518,65 @@ class PlagiarismDetector:
     ) -> Dict[str, str]:
         """Get context around matching phrases."""
         # Find the phrase in both texts and extract surrounding context
+        # Be robust to punctuation/casing differences by allowing non-word chars between words
         context_size = 50  # characters before and after
 
-        def find_context(text, phrase):
-            # Case-insensitive search
+        def build_flexible_pattern(p: str):
             import re
 
-            pattern = re.compile(re.escape(phrase), re.IGNORECASE)
-            match = pattern.search(text)
+            words = [re.escape(w) for w in p.split() if w]
+            if not words:
+                return None
+            # Allow one or more non-word characters between words
+            pattern_str = r"\b" + r"\W+".join(words) + r"\b"
+            return re.compile(pattern_str, re.IGNORECASE)
+
+        def find_context(text: str, p: str):
+            import re
+
+            # Try flexible word-boundary pattern first
+            flexible = build_flexible_pattern(p)
+            match = flexible.search(text) if flexible is not None else None
+
+            # Fallback to simple case-insensitive exact search
+            if not match:
+                simple = re.compile(re.escape(p), re.IGNORECASE)
+                match = simple.search(text)
 
             if not match:
-                return phrase, ""
+                return p, ""
 
             start = match.start()
-            # Extract context
+            end = match.end()
             context_start = max(0, start - context_size)
-            context_end = min(len(text), start + len(phrase) + context_size)
-
+            context_end = min(len(text), end + context_size)
             context = text[context_start:context_end]
-            return phrase, context
+            # Use the actual matched substring from the original text for highlighting
+            highlight = text[start:end]
 
-        phrase1, context1 = find_context(text1, phrase)
-        phrase2, context2 = find_context(text2, phrase)
+            # Build highlighted context by wrapping the first occurrence within context
+            try:
+                # Case-insensitive replace of the first occurrence in the context window
+                pattern_ci = re.compile(re.escape(highlight), re.IGNORECASE)
+                highlighted_context = pattern_ci.sub(
+                    lambda m: f'<span class="highlight-exact">{m.group(0)}</span>',
+                    context,
+                    count=1,
+                )
+            except Exception:
+                highlighted_context = context
+
+            return highlight, context, highlighted_context
+
+        phrase1, context1, highlighted_context1 = find_context(text1, phrase)
+        phrase2, context2, highlighted_context2 = find_context(text2, phrase)
 
         return {
             "phrase": phrase,
             "context1": context1,
             "context2": context2,
+            "highlighted_context1": highlighted_context1,
+            "highlighted_context2": highlighted_context2,
             "highlight1": phrase1,
             "highlight2": phrase2,
         }
