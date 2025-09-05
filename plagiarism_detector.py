@@ -544,7 +544,7 @@ class PlagiarismDetector:
                 match = simple.search(text)
 
             if not match:
-                return p, ""
+                return p, "", ""
 
             start = match.start()
             end = match.end()
